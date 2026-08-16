@@ -1,29 +1,19 @@
 const express = require("express");
-
-const nodemailer = require("nodemailer");
-
 const path = require("path");
-
 const dotenv = require("dotenv");
-
 
 dotenv.config();
 
-
 const app = express();
 
-
-const PORT =
-    process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 
 /* =====================================================
    MIDDLEWARE
 ===================================================== */
 
-app.use(
-    express.json()
-);
+app.use(express.json());
 
 
 /* =====================================================
@@ -32,58 +22,13 @@ app.use(
 
 app.use(
     express.static(
-        path.join(
-            __dirname,
-            "../public"
-        )
+        path.join(__dirname, "../public")
     )
 );
 
 
 /* =====================================================
-   EMAIL TRANSPORTER
-===================================================== */
-
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
-
-
-/* =====================================================
-   TEST EMAIL CONNECTION
-===================================================== */
-
-transporter.verify(
-    error => {
-
-        if (error) {
-
-            console.log(
-                "Email configuration error:",
-                error.message
-            );
-
-        } else {
-
-            console.log(
-                "Email service is ready."
-            );
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   CONTACT API
+   CONTACT API - BREVO
 ===================================================== */
 
 app.post(
@@ -100,7 +45,9 @@ app.post(
             } = req.body;
 
 
-            /* Validation */
+            /* =================================================
+               VALIDATION
+            ================================================= */
 
             if (
                 !name ||
@@ -123,15 +70,15 @@ app.post(
             }
 
 
-            /* Basic email validation */
+            /* =================================================
+               EMAIL VALIDATION
+            ================================================= */
 
             const emailRegex =
                 /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 
-            if (
-                !emailRegex.test(email)
-            ) {
+            if (!emailRegex.test(email)) {
 
                 return res
                     .status(400)
@@ -147,23 +94,95 @@ app.post(
             }
 
 
-            /* Email */
+            /* =================================================
+               CHECK BREVO CONFIGURATION
+            ================================================= */
 
-            const mailOptions = {
+            if (
+                !process.env.BREVO_API_KEY ||
+                !process.env.EMAIL_FROM ||
+                !process.env.EMAIL_TO
+            ) {
 
-                from:
-                    process.env.EMAIL_USER,
+                console.error(
+                    "Brevo environment variables are missing."
+                );
 
-                to:
-                    process.env.EMAIL_TO,
+                return res
+                    .status(500)
+                    .json({
 
-                replyTo:
-                    email,
+                        success: false,
 
-                subject:
-                    `Portfolio Contact: ${subject}`,
+                        message:
+                            "Email service is not configured."
 
-                text: `
+                    });
+
+            }
+
+
+            /* =================================================
+               SEND EMAIL USING BREVO API
+            ================================================= */
+
+            const brevoResponse =
+                await fetch(
+                    "https://api.brevo.com/v3/smtp/email",
+                    {
+
+                        method: "POST",
+
+                        headers: {
+
+                            "accept":
+                                "application/json",
+
+                            "api-key":
+                                process.env.BREVO_API_KEY,
+
+                            "content-type":
+                                "application/json"
+
+                        },
+
+                        body: JSON.stringify({
+
+                            sender: {
+
+                                name:
+                                    "My Portfolio",
+
+                                email:
+                                    process.env.EMAIL_FROM
+
+                            },
+
+                            to: [
+
+                                {
+
+                                    email:
+                                        process.env.EMAIL_TO,
+
+                                    name:
+                                        "Portfolio Owner"
+
+                                }
+
+                            ],
+
+                            replyTo: {
+
+                                email:
+                                    email
+
+                            },
+
+                            subject:
+                                `Portfolio Contact: ${subject}`,
+
+                           textContent: `
 New Portfolio Message
 
 Name: ${name}
@@ -175,58 +194,107 @@ Subject: ${subject}
 Message:
 
 ${message}
-                `,
+`,
 
-                html: `
-                    <div
-                        style="
-                            font-family: Arial;
-                            padding: 20px;
-                            line-height: 1.6;
-                        "
-                    >
+htmlContent: `
 
-                        <h2>
-                            New Portfolio Message
-                        </h2>
+                                <div
+                                    style="
+                                        font-family: Arial, sans-serif;
+                                        padding: 20px;
+                                        line-height: 1.6;
+                                    "
+                                >
 
-                        <p>
-                            <strong>Name:</strong>
-                            ${escapeHtml(name)}
-                        </p>
+                                    <h2>
+                                        New Portfolio Message
+                                    </h2>
 
-                        <p>
-                            <strong>Email:</strong>
-                            ${escapeHtml(email)}
-                        </p>
+                                    <p>
+                                        <strong>
+                                            Name:
+                                        </strong>
+                                        ${escapeHtml(name)}
+                                    </p>
 
-                        <p>
-                            <strong>Subject:</strong>
-                            ${escapeHtml(subject)}
-                        </p>
+                                    <p>
+                                        <strong>
+                                            Email:
+                                        </strong>
+                                        ${escapeHtml(email)}
+                                    </p>
 
-                        <hr>
+                                    <p>
+                                        <strong>
+                                            Subject:
+                                        </strong>
+                                        ${escapeHtml(subject)}
+                                    </p>
 
-                        <h3>
-                            Message
-                        </h3>
+                                    <hr>
 
-                        <p>
-                            ${escapeHtml(message)}
-                        </p>
+                                    <h3>
+                                        Message
+                                    </h3>
 
-                    </div>
-                `
+                                    <p>
+                                        ${escapeHtml(message)}
+                                    </p>
 
-            };
+                                </div>
+
+                            `
+
+                        })
+
+                    }
+                );
 
 
-            await transporter.sendMail(
-                mailOptions
+            /* =================================================
+               BREVO RESPONSE
+            ================================================= */
+
+            const data =
+                await brevoResponse.json();
+
+
+            console.log(
+                "Brevo response:",
+                data
             );
 
 
-            res.json({
+            /* =================================================
+               BREVO ERROR
+            ================================================= */
+
+            if (!brevoResponse.ok) {
+
+                console.error(
+                    "Brevo email error:",
+                    data
+                );
+
+                return res
+                    .status(500)
+                    .json({
+
+                        success: false,
+
+                        message:
+                            "Unable to send message."
+
+                    });
+
+            }
+
+
+            /* =================================================
+               SUCCESS
+            ================================================= */
+
+            return res.json({
 
                 success: true,
 
@@ -244,7 +312,7 @@ ${message}
             );
 
 
-            res
+            return res
                 .status(500)
                 .json({
 
@@ -267,7 +335,7 @@ ${message}
 
 function escapeHtml(text) {
 
-    return text
+    return String(text)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -281,25 +349,28 @@ function escapeHtml(text) {
    FALLBACK
 ===================================================== */
 
-app.use((req, res, next) => {
+app.use(
+    (req, res, next) => {
 
-    if (
-        req.method === "GET" &&
-        !req.path.startsWith("/api")
-    ) {
+        if (
+            req.method === "GET" &&
+            !req.path.startsWith("/api")
+        ) {
 
-        return res.sendFile(
-            path.join(
-                __dirname,
-                "../public/index.html"
-            )
-        );
+            return res.sendFile(
+                path.join(
+                    __dirname,
+                    "../public/index.html"
+                )
+            );
+
+        }
+
+        next();
 
     }
+);
 
-    next();
-
-});
 
 /* =====================================================
    START SERVER
@@ -309,8 +380,10 @@ app.listen(
     PORT,
     "0.0.0.0",
     () => {
+
         console.log(
             `Portfolio running on port ${PORT}`
         );
+
     }
 );
