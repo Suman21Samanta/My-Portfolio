@@ -14,8 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const words = [
         "Frontend Developer",
         "Web Developer",
-        "UI/UX Designer",
-        "JavaScript Developer"
+        "UI/UX Designer"
     ];
 
     let wordIndex = 0;
