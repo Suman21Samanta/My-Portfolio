@@ -1290,3 +1290,69 @@ footer a {
     object-position: center 30%;
     display: block;
 }
+
+/* ================= PROJECT BUTTONS ================= */
+
+.project-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.project-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 10px 18px;
+
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    text-decoration: none;
+
+    background: var(--main-color);
+    color: #00eaff;
+
+    border: 1px solid var(--main-color);
+
+    transition: all 0.3s ease;
+}
+
+
+/* ===== HOVER ===== */
+
+.project-btn:hover {
+    transform: translateY(-3px);
+
+    background: var(--main-color);
+    color: #00eaff;
+
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+
+/* ===== ICON ===== */
+
+.project-btn i {
+    font-size: 18px;
+}
+
+
+/* ===== MOBILE ===== */
+
+@media (max-width: 480px) {
+
+    .project-buttons {
+        flex-direction: column;
+    }
+
+    .project-btn {
+        width: 100%;
+    }
+
+}
